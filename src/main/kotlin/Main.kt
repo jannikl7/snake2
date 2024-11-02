@@ -4,10 +4,14 @@ import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
+import javafx.scene.input.KeyCode
 import javafx.scene.layout.BorderPane
+import javafx.scene.paint.Color
 import javafx.scene.paint.Color.MEDIUMPURPLE
 import javafx.stage.Stage
 import kotlinx.coroutines.*
+import kotlin.random.Random
+
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -19,19 +23,42 @@ class SnakeGame() : Application() {
     val canvasHeight = 400.0
     val canvasWidth = 400.0
     val canvas: Canvas = Canvas(canvasWidth, canvasHeight)
-    val snakeHead: SnakeSegment = SnakeSegment(
-        true, canvas.width / 2, canvas.height / 2, Direction.EAST)
+    val layout = BorderPane()
 
+    val directions = Direction.entries // Get all enum constants
+    val randomIndex = Random.nextInt(directions.size) // Generate a random index
+
+    val obstructions: MutableList<Obstructing> = mutableListOf()
+    val snake: Snake = Snake(canvas.width / 2, canvas.height / 2, directions[randomIndex]) { obstruction ->
+        obstructions.add(obstruction)
+    }
+    var nextAction: MoveAction = MoveAction.NONE
+    var gameAction: GameAction = GameAction.NOT_STARTED
+
+    enum class GameAction {
+        NOT_STARTED,
+        PLAYING,
+        GAME_OVER,
+    }
 
     private val job = SupervisorJob() // Manage coroutine lifecycle
     private val scope = CoroutineScope(Dispatchers.Default + job)
 
     override fun start(stage: Stage) {
-        val layout = BorderPane()
         val start = Button("Snake")
         start.setOnMouseClicked { event ->
-            initializeNewGame(canvasWidth, canvasHeight)
+            initializeNewGame( canvasWidth, canvasHeight)
 
+        }
+        canvas.setOnKeyPressed { event ->
+            when (event.code) {
+                KeyCode.UP -> snake.turn(Direction.NORTH)
+                KeyCode.DOWN -> snake.turn( Direction.SOUTH)
+                KeyCode.LEFT -> snake.turn(Direction.WEST)
+                KeyCode.RIGHT -> snake.turn(Direction.EAST)
+                KeyCode.SPACE -> nextAction = MoveAction.GROW
+                else -> Unit //no action
+            }
         }
         layout.center = start
 
@@ -43,30 +70,85 @@ class SnakeGame() : Application() {
     }
 
     fun initializeNewGame(width: Double, height: Double) {
+        layout.center = canvas
+        canvas.isFocusTraversable = true // Allow canvas to receive focus
+        canvas.requestFocus() // Request focus for the canvas
+        gameAction = GameAction.PLAYING
         // start game loop
         scope.launch {
-            updateGameState()
-            render()
-            delay(100L)
+            while(true) {
+                updateGameState()
+                render()
+                delay(500L)
+            }
         }
     }
 
     fun render() {
-        var gContext: GraphicsContext = canvas.graphicsContext2D
-        var currentSegment: SnakeSegment? = snakeHead
-        var segmentOffsetX = SnakeSegment.WIDTH/2
-        var segmentOffsetY = SnakeSegment.HEIGHT/2
+        val gContext: GraphicsContext = canvas.graphicsContext2D
+        val segmentOffsetX = Snake.WIDTH/2
+        val segmentOffsetY = Snake.HEIGHT/2
 
-        while(currentSegment != null) {
-            //draw currentSegment
-            gContext.fill = MEDIUMPURPLE
-            gContext.fillRect(currentSegment.posX-segmentOffsetX, currentSegment.posY-segmentOffsetY, currentSegment.posX+segmentOffsetX, currentSegment.posY+segmentOffsetY)
-            currentSegment = currentSegment.nextSegment
+        gContext.fill = Color.DIMGREY
+        gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
+        gContext.fill = MEDIUMPURPLE
+
+        //draw head
+        gContext.fillRect(
+            snake.head.posX - segmentOffsetX,
+            snake.head.posY - segmentOffsetY,
+            Snake.WIDTH,
+            Snake.HEIGHT
+        )
+
+        snake.body.forEach { segment ->
+            gContext.fillRect(
+                segment.posX - segmentOffsetX,
+                segment.posY - segmentOffsetY,
+                Snake.WIDTH,
+                Snake.HEIGHT
+            )
+        }
+        if(gameAction == GameAction.GAME_OVER) {
+            gContext.fillText("GAME OVER", 200.0, 200.0)
         }
     }
 
     fun updateGameState() {
-        if(false) endGame() //game is over
+        when (gameAction) {
+            GameAction.GAME_OVER ->
+                endGame() //game is over
+            GameAction.PLAYING -> {
+                //move snake head
+                snake.move(nextAction);
+                nextAction = MoveAction.NONE
+
+                //check collition
+                //check if head outside canvas
+                if (
+                    snake.head.posY - Snake.HEIGHT / 2 < 0 ||
+                    snake.head.posY + Snake.HEIGHT / 2 > canvas.height ||
+                    snake.head.posX - Snake.WIDTH / 2 < 0 ||
+                    snake.head.posX + Snake.WIDTH / 2 > canvas.width
+                ) {
+                    gameAction = GameAction.GAME_OVER
+                }
+
+                obstructions.forEach { obstruction ->
+                    if(isColliding(snake.head, obstruction))
+                        gameAction = GameAction.GAME_OVER;
+                }
+
+            }
+            else -> Unit
+        }
+    }
+
+    fun isColliding(objA: Snake.SnakeSegment, objB: Obstructing): Boolean {
+        return objA.posX  <= objB.posX + Snake.WIDTH/2 &&
+                objA.posX >= objB.posX-Snake.WIDTH/2 &&
+                objA.posY <= objB.posY + Snake.WIDTH/2 &&
+                objA.posY >= objB.posY - Snake.WIDTH/2
     }
 
     fun endGame() {
@@ -76,17 +158,59 @@ class SnakeGame() : Application() {
 
 }
 
-data class SnakeSegment(
-    val isHead: Boolean,
-    val posX: Double,
-    val posY: Double,
-    val direction: Direction,
-    val nextSegment: SnakeSegment? = null,
-) {
+class Snake(var posX: Double, var posY: Double, var direction: Direction, private val onAddSegment: (Obstructing) -> Unit) {
+    val head: SnakeSegment = SnakeSegment(posX, posY, direction)
+    val innerBody: MutableList<SnakeSegment> = mutableListOf()
+    val body: MutableList<SnakeSegment>
+        get() = innerBody
     companion object {
-        const val WIDTH: Double = 20.0
-        const val HEIGHT: Double = 20.0
+       const val WIDTH: Double = 20.0
+       const val HEIGHT: Double = 20.0
     }
+
+    fun move(action: MoveAction) {
+        if(action == MoveAction.GROW) {
+            //push new element with head pos
+            innerBody.addFirst(SnakeSegment(head.posX, head.posY, head.direction))
+            onAddSegment(innerBody.first())
+        } else  {
+            innerBody.asReversed().forEachIndexed { reversedIndex, segment ->
+                val originalIndex = innerBody.size - 1 - reversedIndex
+                if (originalIndex == 0) {
+                    segment.posY = head.posY
+                    segment.posX = head.posX
+                } else {
+                    segment.posY = innerBody.elementAt(originalIndex - 1).posY
+                    segment.posX = innerBody.elementAt(originalIndex - 1).posX
+                }
+            }
+        }
+        when(head.direction) {
+            Direction.NORTH ->
+                head.posY -= HEIGHT
+            Direction.SOUTH ->
+                head.posY += HEIGHT
+            Direction.EAST ->
+                head.posX += WIDTH
+            Direction.WEST ->
+                head.posX -= WIDTH
+        }
+    }
+
+    fun turn(direction: Direction) {
+        head.direction = direction
+    }
+
+    data class SnakeSegment(
+        override var posX: Double,
+        override var posY: Double,
+        var direction: Direction
+    ) : Obstructing
+}
+
+enum class MoveAction {
+    NONE,
+    GROW,
 }
 
 enum class Direction {
@@ -94,4 +218,9 @@ enum class Direction {
     SOUTH,
     EAST,
     WEST
+}
+
+interface Obstructing {
+    val posX: Double
+    val posY: Double
 }
