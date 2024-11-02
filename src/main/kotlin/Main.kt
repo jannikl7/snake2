@@ -91,22 +91,73 @@ class SnakeGame() : Application() {
 
         gContext.fill = Color.DIMGREY
         gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
-        gContext.fill = MEDIUMPURPLE
 
         //draw head
-        gContext.fillRect(
-            snake.head.posX - segmentOffsetX,
-            snake.head.posY - segmentOffsetY,
-            Snake.WIDTH,
-            Snake.HEIGHT
-        )
+        gContext.save()
+        gContext.translate(snake.head.posX, snake.head.posY)
+        when(snake.head.direction) {
+            Direction.NORTH -> gContext.rotate(270.0)
+            Direction.SOUTH -> gContext.rotate(90.0)
+            Direction.EAST -> gContext.rotate(0.0)
+            Direction.WEST -> gContext.scale(-1.0, 1.0)
+        }
+        when(snake.mouthOpen) {
+            true -> {
+                val xPoints = doubleArrayOf(
+                    -segmentOffsetX,
+                    -segmentOffsetX+Snake.WIDTH,
+                    0.0,
+                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX)
+                val yPoints = doubleArrayOf(
+                    -segmentOffsetY,
+                    -segmentOffsetY,
+                    0.0,
+                    -segmentOffsetY+Snake.HEIGHT,
+                    -segmentOffsetY+Snake.HEIGHT)
+                gContext.fill = MEDIUMPURPLE
+                gContext.fillPolygon(xPoints, yPoints, xPoints.size)
+                gContext.fill = Color.GREEN
+                gContext.fillOval(0.0, -(Snake.HEIGHT/2), 4.0, 4.0)
+            }
+            false -> {
 
+                val xPoints = doubleArrayOf(
+                    -segmentOffsetX,
+                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+Snake.WIDTH,
+                    0.0,
+                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX)
+                val yPoints = doubleArrayOf(
+                    -segmentOffsetY,
+                    -segmentOffsetY,
+                    0.0,
+                    0.0,
+                    0.0,
+                    -segmentOffsetY+Snake.HEIGHT,
+                    -segmentOffsetY+Snake.HEIGHT)
+                gContext.fill = MEDIUMPURPLE
+                gContext.fillPolygon(xPoints, yPoints, xPoints.size)
+                gContext.fill = Color.GREEN
+                gContext.fillOval(0.0, -(Snake.HEIGHT/2), 4.0, 4.0)
+                gContext.fill = Color.DIMGREY
+                gContext.strokeLine(0.0, 0.0, Snake.WIDTH/2, 0.0)
+            }
+        }
+        gContext.restore()
+
+
+        gContext.fill = MEDIUMPURPLE
         snake.body.forEach { segment ->
-            gContext.fillRect(
+            gContext.fillRoundRect(
                 segment.posX - segmentOffsetX,
                 segment.posY - segmentOffsetY,
                 Snake.WIDTH,
-                Snake.HEIGHT
+                Snake.HEIGHT,
+                Snake.WIDTH/2,
+                Snake.HEIGHT/2
             )
         }
         if(gameAction == GameAction.GAME_OVER) {
@@ -160,6 +211,13 @@ class SnakeGame() : Application() {
 
 class Snake(var posX: Double, var posY: Double, var direction: Direction, private val onAddSegment: (Obstructing) -> Unit) {
     val head: SnakeSegment = SnakeSegment(posX, posY, direction)
+    private var _mouthOpen = false // Backing field to hold the actual state
+    val mouthOpen: Boolean
+        get() {
+            _mouthOpen = !_mouthOpen // Toggle the value
+            return _mouthOpen
+        }
+
     val innerBody: MutableList<SnakeSegment> = mutableListOf()
     val body: MutableList<SnakeSegment>
         get() = innerBody
