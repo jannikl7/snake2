@@ -29,7 +29,7 @@ class SnakeGame() : Application() {
     val randomIndex = Random.nextInt(directions.size) // Generate a random index
 
     val obstructions: MutableList<Obstructing> = mutableListOf()
-    val snake: Snake = Snake(canvas.width / 2, canvas.height / 2, directions[randomIndex]) { obstruction ->
+    val snake: SnakeController = SnakeController(canvas.width / 2, canvas.height / 2, directions[randomIndex]) { obstruction ->
         obstructions.add(obstruction)
     }
     var nextAction: MoveAction = MoveAction.NONE
@@ -43,9 +43,10 @@ class SnakeGame() : Application() {
 
     private val job = SupervisorJob() // Manage coroutine lifecycle
     private val scope = CoroutineScope(Dispatchers.Default + job)
+    var placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
 
     override fun start(stage: Stage) {
-        val start = Button("Snake")
+        val start = Button(".Snake")
         start.setOnMouseClicked { event ->
             initializeNewGame( canvasWidth, canvasHeight)
 
@@ -65,7 +66,7 @@ class SnakeGame() : Application() {
 
         val scene = Scene(layout, 400.0, 450.0)
         stage.scene = scene
-        stage.title = "Snake Game"
+        stage.title = ".Snake Game"
         stage.show()
     }
 
@@ -86,8 +87,8 @@ class SnakeGame() : Application() {
 
     fun render() {
         val gContext: GraphicsContext = canvas.graphicsContext2D
-        val segmentOffsetX = Snake.WIDTH/2
-        val segmentOffsetY = Snake.HEIGHT/2
+        val segmentOffsetX = SnakeController.WIDTH/2
+        val segmentOffsetY = SnakeController.HEIGHT/2
 
         gContext.fill = Color.DIMGREY
         gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
@@ -105,30 +106,30 @@ class SnakeGame() : Application() {
             true -> {
                 val xPoints = doubleArrayOf(
                     -segmentOffsetX,
-                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
                     0.0,
-                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
                     -segmentOffsetX)
                 val yPoints = doubleArrayOf(
                     -segmentOffsetY,
                     -segmentOffsetY,
                     0.0,
-                    -segmentOffsetY+Snake.HEIGHT,
-                    -segmentOffsetY+Snake.HEIGHT)
+                    -segmentOffsetY+SnakeController.HEIGHT,
+                    -segmentOffsetY+SnakeController.HEIGHT)
                 gContext.fill = MEDIUMPURPLE
                 gContext.fillPolygon(xPoints, yPoints, xPoints.size)
                 gContext.fill = Color.GREEN
-                gContext.fillOval(0.0, -(Snake.HEIGHT/2), 4.0, 4.0)
+                gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
             }
             false -> {
 
                 val xPoints = doubleArrayOf(
                     -segmentOffsetX,
-                    -segmentOffsetX+Snake.WIDTH,
-                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
                     0.0,
-                    -segmentOffsetX+Snake.WIDTH,
-                    -segmentOffsetX+Snake.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
+                    -segmentOffsetX+SnakeController.WIDTH,
                     -segmentOffsetX)
                 val yPoints = doubleArrayOf(
                     -segmentOffsetY,
@@ -136,29 +137,26 @@ class SnakeGame() : Application() {
                     0.0,
                     0.0,
                     0.0,
-                    -segmentOffsetY+Snake.HEIGHT,
-                    -segmentOffsetY+Snake.HEIGHT)
+                    -segmentOffsetY+SnakeController.HEIGHT,
+                    -segmentOffsetY+SnakeController.HEIGHT)
                 gContext.fill = MEDIUMPURPLE
                 gContext.fillPolygon(xPoints, yPoints, xPoints.size)
                 gContext.fill = Color.GREEN
-                gContext.fillOval(0.0, -(Snake.HEIGHT/2), 4.0, 4.0)
+                gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
                 gContext.fill = Color.DIMGREY
-                gContext.strokeLine(0.0, 0.0, Snake.WIDTH/2, 0.0)
+                gContext.strokeLine(0.0, 0.0, SnakeController.WIDTH/2, 0.0)
             }
         }
         gContext.restore()
 
-
-        gContext.fill = MEDIUMPURPLE
+        //add snakes body
         snake.body.forEach { segment ->
-            gContext.fillRoundRect(
-                segment.posX - segmentOffsetX,
-                segment.posY - segmentOffsetY,
-                Snake.WIDTH,
-                Snake.HEIGHT,
-                Snake.WIDTH/2,
-                Snake.HEIGHT/2
-            )
+            segment.render(canvas)
+        }
+
+        //add obstacles
+        obstructions.forEach {item ->
+            item.render(canvas)
         }
         if(gameAction == GameAction.GAME_OVER) {
             gContext.fillText("GAME OVER", 200.0, 200.0)
@@ -174,32 +172,66 @@ class SnakeGame() : Application() {
                 snake.move(nextAction);
                 nextAction = MoveAction.NONE
 
-                //check collition
+                //check collision
                 //check if head outside canvas
                 if (
-                    snake.head.posY - Snake.HEIGHT / 2 < 0 ||
-                    snake.head.posY + Snake.HEIGHT / 2 > canvas.height ||
-                    snake.head.posX - Snake.WIDTH / 2 < 0 ||
-                    snake.head.posX + Snake.WIDTH / 2 > canvas.width
+                    snake.head.posY - SnakeController.HEIGHT / 2 < 0 ||
+                    snake.head.posY + SnakeController.HEIGHT / 2 > canvas.height ||
+                    snake.head.posX - SnakeController.WIDTH / 2 < 0 ||
+                    snake.head.posX + SnakeController.WIDTH / 2 > canvas.width
                 ) {
                     gameAction = GameAction.GAME_OVER
                 }
 
-                obstructions.forEach { obstruction ->
-                    if(isColliding(snake.head, obstruction))
-                        gameAction = GameAction.GAME_OVER;
+                val combinedObjstructions = snake.body + obstructions
+                var obstructionToRemove: Obstructing? = null
+                for( obstruction in combinedObjstructions) {
+                    if(isColliding(snake.head, obstruction)) {
+                        val collisionEvent = obstruction.handleCollision()
+                        when (collisionEvent) {
+                            Obstructing.CollisionEvent.GROW -> {
+                                nextAction = MoveAction.GROW
+                                obstructionToRemove = obstruction
+                            }
+                            Obstructing.CollisionEvent.KILL -> {
+                                gameAction = GameAction.GAME_OVER
+                            }
+                        }
+                        break
+                    }
                 }
+                //remove obstruction
+                obstructionToRemove?.let { obstructions.remove(it) }
 
+
+                //sometimes add food
+                if(System.currentTimeMillis() >= placeNextItemTime) {
+                    //find a random place on the canvas
+                    var foodItem: FoodItem?
+                    do {
+                        val posX = Random.nextDouble(canvas.width)
+                        val posY = Random.nextDouble(canvas.height)
+                        foodItem = FoodItem(posX, posY)
+                    } while(obstructions.any {canvasItem -> isColliding(foodItem, canvasItem)})
+                    //add obstruction
+                    obstructions.add(foodItem)
+                    placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
+                }
             }
             else -> Unit
         }
     }
 
-    fun isColliding(objA: Snake.SnakeSegment, objB: Obstructing): Boolean {
-        return objA.posX  <= objB.posX + Snake.WIDTH/2 &&
-                objA.posX >= objB.posX-Snake.WIDTH/2 &&
-                objA.posY <= objB.posY + Snake.WIDTH/2 &&
-                objA.posY >= objB.posY - Snake.WIDTH/2
+    fun isColliding(objA: Obstructing, objB: Obstructing): Boolean {
+        val halfWidthA = objA.width / 2
+        val halfHeightA = objA.height / 2
+        val halfWidthB = objB.width / 2
+        val halfHeightB = objB.height / 2
+
+        return  objA.posX + halfWidthA > objB.posX - halfWidthB && // Right edge of A reaches left edge of B
+                objA.posX - halfWidthA < objB.posX + halfWidthB && // Left edge of A reaches right edge of B
+                objA.posY + halfHeightA > objB.posY - halfHeightB && // Bottom edge of A reaches top edge of B
+                objA.posY - halfHeightA < objB.posY + halfHeightB    // Top edge of A reaches bottom edge of B
     }
 
     fun endGame() {
@@ -207,63 +239,6 @@ class SnakeGame() : Application() {
         job.cancel()
     }
 
-}
-
-class Snake(var posX: Double, var posY: Double, var direction: Direction, private val onAddSegment: (Obstructing) -> Unit) {
-    val head: SnakeSegment = SnakeSegment(posX, posY, direction)
-    private var _mouthOpen = false // Backing field to hold the actual state
-    val mouthOpen: Boolean
-        get() {
-            _mouthOpen = !_mouthOpen // Toggle the value
-            return _mouthOpen
-        }
-
-    val innerBody: MutableList<SnakeSegment> = mutableListOf()
-    val body: MutableList<SnakeSegment>
-        get() = innerBody
-    companion object {
-       const val WIDTH: Double = 20.0
-       const val HEIGHT: Double = 20.0
-    }
-
-    fun move(action: MoveAction) {
-        if(action == MoveAction.GROW) {
-            //push new element with head pos
-            innerBody.addFirst(SnakeSegment(head.posX, head.posY, head.direction))
-            onAddSegment(innerBody.first())
-        } else  {
-            innerBody.asReversed().forEachIndexed { reversedIndex, segment ->
-                val originalIndex = innerBody.size - 1 - reversedIndex
-                if (originalIndex == 0) {
-                    segment.posY = head.posY
-                    segment.posX = head.posX
-                } else {
-                    segment.posY = innerBody.elementAt(originalIndex - 1).posY
-                    segment.posX = innerBody.elementAt(originalIndex - 1).posX
-                }
-            }
-        }
-        when(head.direction) {
-            Direction.NORTH ->
-                head.posY -= HEIGHT
-            Direction.SOUTH ->
-                head.posY += HEIGHT
-            Direction.EAST ->
-                head.posX += WIDTH
-            Direction.WEST ->
-                head.posX -= WIDTH
-        }
-    }
-
-    fun turn(direction: Direction) {
-        head.direction = direction
-    }
-
-    data class SnakeSegment(
-        override var posX: Double,
-        override var posY: Double,
-        var direction: Direction
-    ) : Obstructing
 }
 
 enum class MoveAction {
@@ -278,7 +253,3 @@ enum class Direction {
     WEST
 }
 
-interface Obstructing {
-    val posX: Double
-    val posY: Double
-}
