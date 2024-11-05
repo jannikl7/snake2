@@ -7,7 +7,6 @@ import javafx.scene.control.Button
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.BorderPane
 import javafx.scene.paint.Color
-import javafx.scene.paint.Color.MEDIUMPURPLE
 import javafx.stage.Stage
 import kotlinx.coroutines.*
 import kotlin.random.Random
@@ -91,67 +90,12 @@ class SnakeGame() : Application() {
 
     fun render() {
         val gContext: GraphicsContext = canvas.graphicsContext2D
-        val segmentOffsetX = SnakeController.WIDTH/2
-        val segmentOffsetY = SnakeController.HEIGHT/2
 
         gContext.fill = Color.DIMGREY
         gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
 
-        //draw head
-        gContext.save()
-        gContext.translate(snake.head.posX, snake.head.posY)
-        when(snake.head.direction) {
-            Direction.NORTH -> gContext.rotate(270.0)
-            Direction.SOUTH -> gContext.rotate(90.0)
-            Direction.EAST -> gContext.rotate(0.0)
-            Direction.WEST -> gContext.scale(-1.0, 1.0)
-        }
-        when(snake.mouthOpen) {
-            true -> {
-                val xPoints = doubleArrayOf(
-                    -segmentOffsetX,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    0.0,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    -segmentOffsetX)
-                val yPoints = doubleArrayOf(
-                    -segmentOffsetY,
-                    -segmentOffsetY,
-                    0.0,
-                    -segmentOffsetY+SnakeController.HEIGHT,
-                    -segmentOffsetY+SnakeController.HEIGHT)
-                gContext.fill = MEDIUMPURPLE
-                gContext.fillPolygon(xPoints, yPoints, xPoints.size)
-                gContext.fill = Color.GREEN
-                gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
-            }
-            false -> {
-
-                val xPoints = doubleArrayOf(
-                    -segmentOffsetX,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    0.0,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    -segmentOffsetX+SnakeController.WIDTH,
-                    -segmentOffsetX)
-                val yPoints = doubleArrayOf(
-                    -segmentOffsetY,
-                    -segmentOffsetY,
-                    0.0,
-                    0.0,
-                    0.0,
-                    -segmentOffsetY+SnakeController.HEIGHT,
-                    -segmentOffsetY+SnakeController.HEIGHT)
-                gContext.fill = MEDIUMPURPLE
-                gContext.fillPolygon(xPoints, yPoints, xPoints.size)
-                gContext.fill = Color.GREEN
-                gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
-                gContext.fill = Color.DIMGREY
-                gContext.strokeLine(0.0, 0.0, SnakeController.WIDTH/2, 0.0)
-            }
-        }
-        gContext.restore()
+        //render head
+        snake.renderHead(canvas)
 
         //add snakes body
         snake.body.forEach { segment ->
