@@ -20,8 +20,10 @@ fun main() {
 }
 
 class SnakeGame() : Application() {
-    val canvasHeight = 400.0
-    val canvasWidth = 400.0
+    val itemWidth = 20.0
+    val itemHeight = 20.0
+    val canvasHeight = itemHeight*20
+    val canvasWidth = itemWidth*20
     val canvas: Canvas = Canvas(canvasWidth, canvasHeight)
     val layout = BorderPane()
 
@@ -29,7 +31,9 @@ class SnakeGame() : Application() {
     val randomIndex = Random.nextInt(directions.size) // Generate a random index
 
     val obstructions: MutableList<Obstructing> = mutableListOf()
-    val snake: SnakeController = SnakeController(canvas.width / 2, canvas.height / 2, directions[randomIndex]) { obstruction ->
+    val snakeStartX = (canvas.width/itemWidth)*(itemWidth/2)-(itemWidth/2)
+    val snakeStartY = (canvas.height/itemHeight)*(itemHeight/2)-(itemHeight/2)
+    val snake: SnakeController = SnakeController(snakeStartX, snakeStartY, directions[randomIndex]) { obstruction ->
         obstructions.add(obstruction)
     }
     var nextAction: MoveAction = MoveAction.NONE
@@ -209,9 +213,9 @@ class SnakeGame() : Application() {
                     //find a random place on the canvas
                     var foodItem: FoodItem?
                     do {
-                        val posX = Random.nextDouble(canvas.width)
-                        val posY = Random.nextDouble(canvas.height)
-                        foodItem = FoodItem(posX, posY)
+                        val posX = (Random.nextInt((canvas.width/itemWidth).toInt()) * itemWidth.toInt()) + (itemWidth.toInt()/2)
+                        val posY = (Random.nextInt((canvas.height/itemHeight).toInt()) * itemHeight.toInt()) + (itemHeight.toInt()/2)
+                        foodItem = FoodItem(posX.toDouble(), posY.toDouble())
                     } while(obstructions.any {canvasItem -> isColliding(foodItem, canvasItem)})
                     //add obstruction
                     obstructions.add(foodItem)

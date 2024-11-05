@@ -62,8 +62,6 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
         override val width: Double,
         var direction: Direction
     ) : Obstructing {
-        var nextHeadPosX = posX
-        var nextHeadPosY = posY
         override fun handleCollision(): Obstructing.CollisionEvent {
             return Obstructing.CollisionEvent.KILL
         }
