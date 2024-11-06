@@ -12,10 +12,6 @@ import javafx.stage.Stage
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
-
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-
 /*
 ------------------ NOTES ---------------
 create a world class which can be passed to obstruction objects so they
@@ -26,6 +22,9 @@ when you have only one segment you can go back
 Add nice GAME OVER sign
 
 Slowly speed the game up
+
+if you input several keys before next tick, only the last one will execute. Maybe they need to be cashed
+and played sequentially in the following ticks. I could be annoying though.
 
 
  */
