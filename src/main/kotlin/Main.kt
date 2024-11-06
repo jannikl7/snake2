@@ -4,6 +4,7 @@ import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
+import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.BorderPane
 import javafx.scene.paint.Color
@@ -14,6 +15,21 @@ import kotlin.random.Random
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+
+/*
+------------------ NOTES ---------------
+create a world class which can be passed to obstruction objects so they
+can have an effect on game parameters such as points, etc
+
+when you have only one segment you can go back
+
+Add nice GAME OVER sign
+
+Slowly speed the game up
+
+
+ */
+
 fun main() {
     Application.launch(SnakeGame::class.java)
 }
@@ -47,6 +63,8 @@ class SnakeGame() : Application() {
     private val job = SupervisorJob() // Manage coroutine lifecycle
     private val scope = CoroutineScope(Dispatchers.Default + job)
     var placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
+
+    val bgImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
 
     override fun start(stage: Stage) {
         val start = Button(".Snake")
@@ -92,7 +110,8 @@ class SnakeGame() : Application() {
         val gContext: GraphicsContext = canvas.graphicsContext2D
 
         gContext.fill = Color.DIMGREY
-        gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
+        gContext.drawImage(bgImg, 0.0, 0.0)
+       // gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
 
         //render head
         snake.renderHead(canvas)
@@ -117,7 +136,7 @@ class SnakeGame() : Application() {
                 endGame() //game is over
             GameAction.PLAYING -> {
                 //move snake head
-                snake.move(nextAction);
+                snake.move(nextAction, obstructions)?.let { obstructions.remove(it) }
                 nextAction = MoveAction.NONE
 
                 //check collision
@@ -131,35 +150,40 @@ class SnakeGame() : Application() {
                     gameAction = GameAction.GAME_OVER
                 }
 
-                val combinedObjstructions = snake.body + obstructions
-                var obstructionToRemove: Obstructing? = null
-                for( obstruction in combinedObjstructions) {
+                val combinedObstructions = snake.body + obstructions
+                var obstructionToRemove = mutableListOf<Obstructing>()
+                for( obstruction in combinedObstructions) {
                     if(isColliding(snake.head, obstruction)) {
                         val collisionEvent = obstruction.handleCollision()
                         when (collisionEvent) {
                             Obstructing.CollisionEvent.GROW -> {
                                 nextAction = MoveAction.GROW
-                                obstructionToRemove = obstruction
+                                obstructionToRemove.add(obstruction)
                             }
                             Obstructing.CollisionEvent.KILL -> {
                                 gameAction = GameAction.GAME_OVER
                             }
+                            Obstructing.CollisionEvent.SHRINK -> {
+                                nextAction = MoveAction.SHRINK
+                                obstructionToRemove.add(obstruction)
+                            }
                         }
-                        break
                     }
+                    if(obstruction is FoodItem && obstruction.removeTime < System.currentTimeMillis())
+                        obstructionToRemove.add(obstruction)
                 }
                 //remove obstruction
-                obstructionToRemove?.let { obstructions.remove(it) }
+                obstructionToRemove.forEach { item -> obstructions.remove(item) }
 
 
                 //sometimes add food
                 if(System.currentTimeMillis() >= placeNextItemTime) {
                     //find a random place on the canvas
-                    var foodItem: FoodItem?
+                    var foodItem: FoodItem
                     do {
                         val posX = (Random.nextInt((canvas.width/itemWidth).toInt()) * itemWidth.toInt()) + (itemWidth.toInt()/2)
                         val posY = (Random.nextInt((canvas.height/itemHeight).toInt()) * itemHeight.toInt()) + (itemHeight.toInt()/2)
-                        foodItem = FoodItem(posX.toDouble(), posY.toDouble())
+                        foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(3) == 1))
                     } while(obstructions.any {canvasItem -> isColliding(foodItem, canvasItem)})
                     //add obstruction
                     obstructions.add(foodItem)
@@ -192,6 +216,7 @@ class SnakeGame() : Application() {
 enum class MoveAction {
     NONE,
     GROW,
+    SHRINK,
 }
 
 enum class Direction {

@@ -13,5 +13,6 @@ interface Obstructing {
     enum class CollisionEvent {
         KILL,
         GROW,
+        SHRINK,
     }
 }

@@ -1,12 +1,16 @@
+
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.paint.Color
-import javafx.scene.paint.Color.MEDIUMPURPLE
+import javafx.scene.paint.CycleMethod
+import javafx.scene.paint.RadialGradient
+import javafx.scene.paint.Stop
 
 class SnakeController(var posX: Double, var posY: Double, var direction: Direction, private val onAddSegment: (Obstructing) -> Unit) {
     companion object {
         const val WIDTH: Double = 20.0
         const val HEIGHT: Double = 20.0
+        val STROKE: Color = Color.DARKGRAY
     }
     val head: SnakeSegment = SnakeSegment(posX, posY, WIDTH, HEIGHT, direction)
     private var _mouthOpen = false // Backing field to hold the actual state
@@ -16,16 +20,25 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
             return _mouthOpen
         }
 
-    val innerBody: MutableList<SnakeSegment> = mutableListOf()
+    private val innerBody: MutableList<SnakeSegment> = mutableListOf()
     val body: MutableList<SnakeSegment>
         get() = innerBody
 
-    fun move(action: MoveAction) {
+    val gradient = RadialGradient(
+        0.0, 0.0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
+        Stop(0.0, Color.GREEN), Stop(1.0, Color.DARKGREEN)
+    )
+
+    fun move(action: MoveAction, obstructions: MutableList<Obstructing>): SnakeSegment?{
+        var element: SnakeSegment? = null
         if(action == MoveAction.GROW) {
             //push new element with head pos
             grow(1)
             onAddSegment(innerBody.first())
         } else  {
+            if(action == MoveAction.SHRINK) {
+                element = innerBody.removeLast()
+            }
             innerBody.asReversed().forEachIndexed { reversedIndex, segment ->
                 val originalIndex = innerBody.size - 1 - reversedIndex
                 if (originalIndex == 0) {
@@ -47,6 +60,7 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
             Direction.WEST ->
                 head.posX -= WIDTH
         }
+        return element
     }
 
     fun turn(direction: Direction) {
@@ -84,8 +98,10 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
                     0.0,
                     -segmentOffsetY+SnakeController.HEIGHT,
                     -segmentOffsetY+SnakeController.HEIGHT)
-                gContext.fill = MEDIUMPURPLE
+                gContext.fill = gradient
                 gContext.fillPolygon(xPoints, yPoints, xPoints.size)
+                gContext.stroke = SnakeController.STROKE
+                gContext.strokePolygon(xPoints, yPoints, xPoints.size)
                 gContext.fill = Color.GREEN
                 gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
             }
@@ -107,11 +123,12 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
                     0.0,
                     -segmentOffsetY+SnakeController.HEIGHT,
                     -segmentOffsetY+SnakeController.HEIGHT)
-                gContext.fill = MEDIUMPURPLE
+                gContext.fill = gradient
                 gContext.fillPolygon(xPoints, yPoints, xPoints.size)
                 gContext.fill = Color.GREEN
                 gContext.fillOval(0.0, -(SnakeController.HEIGHT/2), 4.0, 4.0)
-                gContext.fill = Color.DIMGREY
+                gContext.stroke = SnakeController.STROKE
+                gContext.strokePolygon(xPoints, yPoints, xPoints.size)
                 gContext.strokeLine(0.0, 0.0, SnakeController.WIDTH/2, 0.0)
             }
         }
@@ -133,7 +150,12 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
             val segmentOffsetX = WIDTH /2
             val segmentOffsetY = HEIGHT /2
             val gContext = canvas.graphicsContext2D
-            gContext.fill = MEDIUMPURPLE
+            val gradient = RadialGradient(
+                    0.0, 0.0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
+            Stop(0.0, Color.GREEN), Stop(1.0, Color.DARKGREEN)
+            )
+
+            gContext.fill = gradient
             gContext.fillRoundRect(
                 this.posX - segmentOffsetX,
                 this.posY - segmentOffsetY,
@@ -142,6 +164,15 @@ class SnakeController(var posX: Double, var posY: Double, var direction: Directi
                 WIDTH /2,
                 HEIGHT /2
             )
+
+            gContext.stroke = SnakeController.STROKE
+            gContext.strokeRoundRect(
+                this.posX - segmentOffsetX,
+                this.posY - segmentOffsetY,
+                WIDTH,
+                HEIGHT,
+                WIDTH /2,
+                HEIGHT /2)
         }
     }
 }
