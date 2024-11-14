@@ -46,8 +46,6 @@ class SnakeGame() : Application() {
    val pointsLabel = Label()
    val layout = BorderPane()
 
-   val directions = Direction.entries // Get all enum constants
-
    val levels = Levels(itemHeight, itemWidth, canvasWidth, canvasHeight)
    lateinit var level: Levels.Level
    lateinit var obstructions: MutableList<Obstructing>
@@ -62,6 +60,7 @@ class SnakeGame() : Application() {
       NOT_STARTED,
       PLAYING,
       GAME_OVER,
+      LEVEL_COMPLETED,
    }
 
    private val job = SupervisorJob() // Manage coroutine lifecycle
@@ -115,37 +114,21 @@ class SnakeGame() : Application() {
             withContext(Dispatchers.JavaFx) {
                render()
             }
-            delay(500L)
+            delay(300L)
          }
       }
    }
 
    fun render() {
-      val gContext: GraphicsContext = canvas.graphicsContext2D
-
-      pointsLabel.text = "Points: $points"
-
-      gContext.fill = Color.DIMGREY
-      gContext.drawImage(bgImg, 0.0, 0.0)
-      // gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
-
-      //renderGrid()
-
-      //render head
-      snake.renderHead(canvas)
-
-      //add snakes body
-      snake.body.forEach { segment ->
-         segment.render(canvas)
-      }
-
-      //add obstacles
-      obstructions.forEach { item ->
-         item.render(canvas)
-      }
-      if (gameAction == GameAction.GAME_OVER) {
-         gContext.fillText("GAME OVER", 200.0, 200.0)
-      }
+      renderScene(
+         canvas,
+         snake,
+         pointsLabel,
+         points,
+         bgImg,
+         level,
+         gameAction
+      )
    }
 
    fun updateGameState() {
@@ -178,6 +161,7 @@ class SnakeGame() : Application() {
                         nextAction = MoveAction.GROW
                         obstructionToRemove.add(obstruction)
                         points++
+                        if(points == level.goalPoints) gameAction = GameAction.LEVEL_COMPLETED
                      }
 
                      Obstructing.CollisionEvent.KILL -> {
@@ -214,7 +198,6 @@ class SnakeGame() : Application() {
                placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
             }
          }
-
          else -> Unit
       }
    }

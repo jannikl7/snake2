@@ -2,7 +2,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
    val levels: MutableList<Level> = mutableListOf()
 
    init {
-      levels.add(Level("Level 1", mutableListOf(), Direction.EAST, 25))
+      levels.add(Level("Level 1", mutableListOf(), Direction.EAST, 1))
 
       //------------- Level 2 ----------------
       val level2 = mutableListOf<Obstructing>()
