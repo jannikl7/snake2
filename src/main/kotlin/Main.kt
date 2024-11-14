@@ -1,14 +1,17 @@
 import javafx.application.Application
+import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
+import javafx.scene.control.Label
 import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.BorderPane
 import javafx.scene.paint.Color
 import javafx.stage.Stage
 import kotlinx.coroutines.*
+import kotlinx.coroutines.javafx.JavaFx
 import kotlin.random.Random
 
 /*
@@ -33,24 +36,27 @@ fun main() {
 }
 
 class SnakeGame() : Application() {
-   val itemWidth = 20.0
-   val itemHeight = 20.0
-   val canvasHeight = itemHeight * 20
-   val canvasWidth = itemWidth * 20
+   companion object {
+      val itemWidth = 20.0
+      val itemHeight = 20.0
+      val canvasHeight = itemHeight * 20
+      val canvasWidth = itemWidth * 20
+   }
    val canvas: Canvas = Canvas(canvasWidth, canvasHeight)
+   val pointsLabel = Label()
    val layout = BorderPane()
 
    val directions = Direction.entries // Get all enum constants
-   val randomIndex = Random.nextInt(directions.size) // Generate a random index
 
-   val obstructions: MutableList<Obstructing> = mutableListOf()
-   val snakeStartX = (canvas.width / itemWidth) * (itemWidth / 2) - (itemWidth / 2)
-   val snakeStartY = (canvas.height / itemHeight) * (itemHeight / 2) - (itemHeight / 2)
-   val snake: SnakeController = SnakeController(snakeStartX, snakeStartY, directions[randomIndex]) { obstruction ->
-      obstructions.add(obstruction)
-   }
+   val levels = Levels(itemHeight, itemWidth, canvasWidth, canvasHeight)
+   lateinit var level: Levels.Level
+   lateinit var obstructions: MutableList<Obstructing>
+   val snakeStartX = (canvas.width / itemWidth) * (itemWidth / 2) - (itemWidth)
+   val snakeStartY = (canvas.height / itemHeight) * (itemHeight / 2) - (itemHeight)
+   lateinit var snake: SnakeController
    var nextAction: MoveAction = MoveAction.NONE
    var gameAction: GameAction = GameAction.NOT_STARTED
+   var points: Int = 0
 
    enum class GameAction {
       NOT_STARTED,
@@ -90,7 +96,15 @@ class SnakeGame() : Application() {
    }
 
    fun initializeNewGame(width: Double, height: Double) {
+      level = levels.getLevel(1)
+      obstructions = level.board
+      snake = SnakeController(snakeStartX, snakeStartY, level.startDirection) { obstruction ->
+         obstructions.add(obstruction)
+      }
+      nextAction = MoveAction.NONE
+      pointsLabel.text = "Points: $points"
       layout.center = canvas
+      layout.bottom = pointsLabel
       canvas.isFocusTraversable = true // Allow canvas to receive focus
       canvas.requestFocus() // Request focus for the canvas
       gameAction = GameAction.PLAYING
@@ -98,7 +112,9 @@ class SnakeGame() : Application() {
       scope.launch {
          while (true) {
             updateGameState()
-            render()
+            withContext(Dispatchers.JavaFx) {
+               render()
+            }
             delay(500L)
          }
       }
@@ -107,9 +123,13 @@ class SnakeGame() : Application() {
    fun render() {
       val gContext: GraphicsContext = canvas.graphicsContext2D
 
+      pointsLabel.text = "Points: $points"
+
       gContext.fill = Color.DIMGREY
       gContext.drawImage(bgImg, 0.0, 0.0)
       // gContext.fillRect(0.0, 0.0, canvas.width, canvas.height)
+
+      //renderGrid()
 
       //render head
       snake.renderHead(canvas)
@@ -140,16 +160,16 @@ class SnakeGame() : Application() {
             //check collision
             //check if head outside canvas
             if (
-               snake.head.posY - SnakeController.HEIGHT / 2 < 0 ||
-               snake.head.posY + SnakeController.HEIGHT / 2 > canvas.height ||
-               snake.head.posX - SnakeController.WIDTH / 2 < 0 ||
-               snake.head.posX + SnakeController.WIDTH / 2 > canvas.width
+               snake.head.posY < 0 ||
+               snake.head.posY + SnakeController.HEIGHT> canvas.height ||
+               snake.head.posX  < 0 ||
+               snake.head.posX + SnakeController.WIDTH> canvas.width
             ) {
                gameAction = GameAction.GAME_OVER
             }
 
             val combinedObstructions = snake.body + obstructions
-            var obstructionToRemove = mutableListOf<Obstructing>()
+            val obstructionToRemove = mutableListOf<Obstructing>()
             for (obstruction in combinedObstructions) {
                if (isColliding(snake.head, obstruction)) {
                   val collisionEvent = obstruction.handleCollision()
@@ -157,6 +177,7 @@ class SnakeGame() : Application() {
                      Obstructing.CollisionEvent.GROW -> {
                         nextAction = MoveAction.GROW
                         obstructionToRemove.add(obstruction)
+                        points++
                      }
 
                      Obstructing.CollisionEvent.KILL -> {
@@ -166,6 +187,7 @@ class SnakeGame() : Application() {
                      Obstructing.CollisionEvent.SHRINK -> {
                         nextAction = MoveAction.SHRINK
                         obstructionToRemove.add(obstruction)
+                        points--
                      }
                   }
                }
@@ -182,10 +204,10 @@ class SnakeGame() : Application() {
                var foodItem: FoodItem
                do {
                   val posX =
-                     (Random.nextInt((canvas.width / itemWidth).toInt()) * itemWidth.toInt()) + (itemWidth.toInt() / 2)
+                     Random.nextInt((canvas.width / itemWidth).toInt()) * itemWidth.toInt()
                   val posY =
-                     (Random.nextInt((canvas.height / itemHeight).toInt()) * itemHeight.toInt()) + (itemHeight.toInt() / 2)
-                  foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(3) == 1))
+                     Random.nextInt((canvas.height / itemHeight).toInt()) * itemHeight.toInt()
+                  foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(2) == 1))
                } while (obstructions.any { canvasItem -> isColliding(foodItem, canvasItem) })
                //add obstruction
                obstructions.add(foodItem)
@@ -194,6 +216,17 @@ class SnakeGame() : Application() {
          }
 
          else -> Unit
+      }
+   }
+
+   fun renderGrid() {
+      val gContext = canvas.graphicsContext2D
+      gContext.stroke = Color.LIGHTGREY
+      gContext.lineWidth = 1.0
+      for(y:Int in itemHeight.toInt() .. (canvasHeight-itemHeight).toInt() step itemHeight.toInt()) {
+         for (x: Int in itemWidth.toInt()..(canvasWidth - itemWidth).toInt() step itemWidth.toInt()) {
+            gContext.strokeLine(x.toDouble(), y.toDouble(), x.toDouble(), y+itemHeight)
+         }
       }
    }
 

@@ -3,8 +3,8 @@ import javafx.scene.canvas.Canvas
 interface Obstructing {
    val posX: Double
    val posY: Double
-   val height: Double
    val width: Double
+   val height: Double
 
    fun handleCollision(): CollisionEvent
 

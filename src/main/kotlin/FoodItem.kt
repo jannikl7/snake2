@@ -8,12 +8,19 @@ class FoodItem(
 ) : Obstructing {
 
    val removeTime: Long = System.currentTimeMillis() + 10000
+   val centerX = posX+SnakeGame.itemWidth/2
+   val centerY = posY+SnakeGame.itemHeight/2
 
    override fun render(canvas: Canvas) {
       val gContext = canvas.graphicsContext2D
       gContext.fill = if (editable) Color.GREEN else Color.RED
 
-      gContext.fillOval(posX - width / 2, posY - height / 2, width, height)
+      gContext.fillOval(
+         centerX-width/2,
+         centerY-height/2,
+         width,
+         height
+      )
    }
 
    override fun handleCollision(): Obstructing.CollisionEvent {

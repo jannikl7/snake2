@@ -85,7 +85,7 @@ class SnakeController(
       val segmentOffsetX = SnakeController.WIDTH / 2
       val segmentOffsetY = SnakeController.HEIGHT / 2
       gContext.save()
-      gContext.translate(head.posX, head.posY)
+      gContext.translate(head.posX + segmentOffsetX, head.posY + segmentOffsetY)
       when (head.direction) {
          Direction.NORTH -> gContext.rotate(270.0)
          Direction.SOUTH -> gContext.rotate(90.0)
@@ -151,8 +151,8 @@ class SnakeController(
    data class SnakeSegment(
       override var posX: Double,
       override var posY: Double,
-      override val height: Double,
       override val width: Double,
+      override val height: Double,
       var direction: Direction
    ) : Obstructing {
       override fun handleCollision(): Obstructing.CollisionEvent {
@@ -160,8 +160,6 @@ class SnakeController(
       }
 
       override fun render(canvas: Canvas) {
-         val segmentOffsetX = WIDTH / 2
-         val segmentOffsetY = HEIGHT / 2
          val gContext = canvas.graphicsContext2D
          val gradient = RadialGradient(
             0.0, 0.0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
@@ -170,8 +168,8 @@ class SnakeController(
 
          gContext.fill = gradient
          gContext.fillRoundRect(
-            this.posX - segmentOffsetX,
-            this.posY - segmentOffsetY,
+            this.posX,
+            this.posY,
             WIDTH,
             HEIGHT,
             WIDTH / 2,
@@ -180,8 +178,8 @@ class SnakeController(
 
          gContext.stroke = SnakeController.STROKE
          gContext.strokeRoundRect(
-            this.posX - segmentOffsetX,
-            this.posY - segmentOffsetY,
+            this.posX,
+            this.posY,
             WIDTH,
             HEIGHT,
             WIDTH / 2,
