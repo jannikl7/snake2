@@ -34,6 +34,14 @@ class SnakeController(
       Stop(0.0, Color.GREEN), Stop(1.0, Color.DARKGREEN)
    )
 
+   fun initAt(posX: Double, posY: Double, direction: Direction) {
+      innerBody.clear()
+      _mouthOpen = false
+      head.posX = posX
+      head.posY = posY
+      head.direction = direction
+   }
+
    fun move(action: MoveAction, obstructions: MutableList<Obstructing>): SnakeSegment? {
       var element: SnakeSegment? = null
       if (action == MoveAction.GROW) {

@@ -1,8 +1,6 @@
 import javafx.application.Application
-import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
-import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
 import javafx.scene.control.Label
 import javafx.scene.image.Image
@@ -12,7 +10,9 @@ import javafx.scene.paint.Color
 import javafx.stage.Stage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.JavaFx
+import java.util.logging.Logger
 import kotlin.random.Random
+import kotlin.system.exitProcess
 
 /*
 ------------------ NOTES ---------------
@@ -37,30 +37,40 @@ fun main() {
 
 class SnakeGame() : Application() {
    companion object {
-      val itemWidth = 20.0
-      val itemHeight = 20.0
-      val canvasHeight = itemHeight * 20
-      val canvasWidth = itemWidth * 20
+      val staticItemWidth = 20.0
+      val staticItemHeight = 20.0
    }
+   val logger = Logger.getLogger("SnakeLogger")
+
+   var scaleFactor:Int = 1
+   val itemWidth = staticItemWidth * scaleFactor
+   val itemHeight = staticItemHeight * scaleFactor
+   val canvasHeight = itemHeight * 20
+   val canvasWidth = itemWidth * 20
+
    val canvas: Canvas = Canvas(canvasWidth, canvasHeight)
    val pointsLabel = Label()
    val layout = BorderPane()
 
-   val levels = Levels(itemHeight, itemWidth, canvasWidth, canvasHeight)
+   val levels = Levels(itemHeight, itemWidth, canvasWidth, canvasHeight, scaleFactor)
    lateinit var level: Levels.Level
+   val levelPauseLength = 5000
+   var levelPauseEnd: Long? = null
+
    lateinit var obstructions: MutableList<Obstructing>
    val snakeStartX = (canvas.width / itemWidth) * (itemWidth / 2) - (itemWidth)
    val snakeStartY = (canvas.height / itemHeight) * (itemHeight / 2) - (itemHeight)
    lateinit var snake: SnakeController
    var nextAction: MoveAction = MoveAction.NONE
-   var gameAction: GameAction = GameAction.NOT_STARTED
+   var gameState: GameState = GameState.MENU
    var points: Int = 0
 
-   enum class GameAction {
-      NOT_STARTED,
+   enum class GameState {
+      MENU,
       PLAYING,
       GAME_OVER,
       LEVEL_COMPLETED,
+      GAME_WON,
    }
 
    private val job = SupervisorJob() // Manage coroutine lifecycle
@@ -69,24 +79,12 @@ class SnakeGame() : Application() {
 
    val bgImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
 
+   fun initMenu() {
+      renderMenu(canvas, layout) {initializeNewGame(canvasWidth, canvasHeight)}
+   }
+
    override fun start(stage: Stage) {
-      val start = Button(".Snake")
-      start.setOnMouseClicked { event ->
-         initializeNewGame(canvasWidth, canvasHeight)
-
-      }
-      canvas.setOnKeyPressed { event ->
-         when (event.code) {
-            KeyCode.UP -> snake.turn(Direction.NORTH)
-            KeyCode.DOWN -> snake.turn(Direction.SOUTH)
-            KeyCode.LEFT -> snake.turn(Direction.WEST)
-            KeyCode.RIGHT -> snake.turn(Direction.EAST)
-            KeyCode.SPACE -> nextAction = MoveAction.GROW
-            else -> Unit //no action
-         }
-      }
-      layout.center = start
-
+      initMenu()
 
       val scene = Scene(layout, 400.0, 450.0)
       stage.scene = scene
@@ -96,17 +94,35 @@ class SnakeGame() : Application() {
 
    fun initializeNewGame(width: Double, height: Double) {
       level = levels.getLevel(1)
-      obstructions = level.board
-      snake = SnakeController(snakeStartX, snakeStartY, level.startDirection) { obstruction ->
-         obstructions.add(obstruction)
+      val firstLevel = Levels.getFirstLevel()
+      if(firstLevel == null) {
+         logger.severe("There are no levels available!!!")
+         exitProcess(1)
+      } else {
+         snake = SnakeController(snakeStartX, snakeStartY, level.startDirection) { obstruction ->
+            obstructions.add(obstruction)
+         }
+         initializeLevel(firstLevel)
       }
       nextAction = MoveAction.NONE
       pointsLabel.text = "Points: $points"
+      canvas.setOnKeyPressed { event ->
+         if(gameState == GameState.PLAYING) {
+            when (event.code) {
+               KeyCode.UP -> snake.turn(Direction.NORTH)
+               KeyCode.DOWN -> snake.turn(Direction.SOUTH)
+               KeyCode.LEFT -> snake.turn(Direction.WEST)
+               KeyCode.RIGHT -> snake.turn(Direction.EAST)
+               KeyCode.SPACE -> nextAction = MoveAction.GROW
+               else -> Unit //no action
+            }
+         }
+      }
       layout.center = canvas
       layout.bottom = pointsLabel
       canvas.isFocusTraversable = true // Allow canvas to receive focus
       canvas.requestFocus() // Request focus for the canvas
-      gameAction = GameAction.PLAYING
+      gameState = GameState.PLAYING
       // start game loop
       scope.launch {
          while (true) {
@@ -119,23 +135,60 @@ class SnakeGame() : Application() {
       }
    }
 
+   fun initializeLevel(level: Levels.Level) {
+      this.level = level
+      obstructions = level.board
+      snake.initAt(snakeStartX, snakeStartY, level.startDirection)
+      points = 0
+      nextAction = MoveAction.NONE
+   }
+
    fun render() {
-      renderScene(
-         canvas,
-         snake,
-         pointsLabel,
-         points,
-         bgImg,
-         level,
-         gameAction
-      )
+      when(gameState) {
+         GameState.GAME_OVER ->
+            renderGameOver(canvas)
+         GameState.LEVEL_COMPLETED ->
+            renderLevelComplete(canvas)
+         GameState.PLAYING ->
+            renderScene(
+               canvas,
+               snake,
+               pointsLabel,
+               points,
+               bgImg,
+               level,
+               gameState
+            )
+         GameState.MENU ->
+            initMenu()
+         GameState.GAME_WON ->
+            renderGameWon(canvas)
+      }
    }
 
    fun updateGameState() {
-      when (gameAction) {
-         GameAction.GAME_OVER ->
+      when (gameState) {
+         GameState.GAME_OVER ->
             endGame() //game is over
-         GameAction.PLAYING -> {
+         GameState.LEVEL_COMPLETED -> {
+            levelPauseEnd?.let { pauseEnd ->
+               if (pauseEnd <= System.currentTimeMillis()) {
+                  val nextLevel = Levels.getNextLevel(level)
+                  if (nextLevel != null) {
+                     level = nextLevel
+                     levelPauseEnd = null
+                     initializeLevel(level)
+                     gameState = GameState.PLAYING
+                  } else {
+                     logger.severe("No more levels and this one is not final. Level.idx: ${level.idx}")
+                  }
+               }
+            } ?: run {
+               levelPauseEnd = System.currentTimeMillis() + levelPauseLength
+            }
+
+         }
+         GameState.PLAYING -> {
             //move snake head
             snake.move(nextAction, obstructions)?.let { obstructions.remove(it) }
             nextAction = MoveAction.NONE
@@ -148,7 +201,7 @@ class SnakeGame() : Application() {
                snake.head.posX  < 0 ||
                snake.head.posX + SnakeController.WIDTH> canvas.width
             ) {
-               gameAction = GameAction.GAME_OVER
+               gameState = GameState.GAME_OVER
             }
 
             val combinedObstructions = snake.body + obstructions
@@ -161,11 +214,15 @@ class SnakeGame() : Application() {
                         nextAction = MoveAction.GROW
                         obstructionToRemove.add(obstruction)
                         points++
-                        if(points == level.goalPoints) gameAction = GameAction.LEVEL_COMPLETED
+                        if(points == level.goalPoints) {
+                           //check if player won
+                              if(level.finalLevel) gameState = GameState.GAME_WON
+                              else gameState = GameState.LEVEL_COMPLETED
+                        }
                      }
 
                      Obstructing.CollisionEvent.KILL -> {
-                        gameAction = GameAction.GAME_OVER
+                        gameState = GameState.GAME_OVER
                      }
 
                      Obstructing.CollisionEvent.SHRINK -> {
@@ -191,7 +248,7 @@ class SnakeGame() : Application() {
                      Random.nextInt((canvas.width / itemWidth).toInt()) * itemWidth.toInt()
                   val posY =
                      Random.nextInt((canvas.height / itemHeight).toInt()) * itemHeight.toInt()
-                  foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(2) == 1))
+                  foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(2) == 1), width = itemWidth, height = itemHeight)
                } while (obstructions.any { canvasItem -> isColliding(foodItem, canvasItem) })
                //add obstruction
                obstructions.add(foodItem)
