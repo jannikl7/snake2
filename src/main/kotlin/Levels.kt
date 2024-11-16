@@ -3,7 +3,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
       val centerCol = (canvasWidth/itemWidth)/2
       val centerRow = (canvasHeight/itemHeight)/2
 
-      levels.add(Level(0,"Level 1", mutableListOf(), Direction.EAST, 1, false))
+      levels.add(Level(0,"Level 1", mutableListOf(), Direction.EAST, 25, false))
 
       //------------- Level 2 ----------------
       val level2 = mutableListOf<Obstructing>()
@@ -14,7 +14,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level2.add(SolidObstruction((startX + i) * itemWidth, thirdHeight * itemHeight, itemWidth, itemHeight))
          level2.add(SolidObstruction((startX + i) * itemWidth, thirdHeight * itemHeight * 2, itemWidth, itemHeight))
       }
-      levels.add(Level(1, "Level2", level2, Direction.EAST, 1, false))
+      levels.add(Level(1, "Level2", level2, Direction.EAST, 25, false))
 
 
       //------------- Level 3 ----------------
@@ -32,7 +32,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level3.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*3), itemWidth, itemHeight))
          level3.add(SolidObstruction((canvasWidth-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*4), itemWidth, itemHeight))
       }
-       levels.add(Level(2, "Level3", level3, Direction.EAST, 1, true))
+       levels.add(Level(2, "Level3", level3, Direction.EAST, 25, true))
 
       // level4 = mutableListOf<Obstructing>()
    }
