@@ -14,5 +14,6 @@ interface Obstructing {
       KILL,
       GROW,
       SHRINK,
+      JUMP,
    }
 }

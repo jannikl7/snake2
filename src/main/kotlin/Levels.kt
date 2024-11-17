@@ -32,9 +32,16 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level3.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*3), itemWidth, itemHeight))
          level3.add(SolidObstruction((canvasWidth-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*4), itemWidth, itemHeight))
       }
-       levels.add(Level(2, "Level3", level3, Direction.EAST, 25, true))
+       levels.add(Level(2, "Level3", level3, Direction.EAST, 25, false))
 
-      // level4 = mutableListOf<Obstructing>()
+       val level4 = mutableListOf<Obstructing>()
+      (3 .. 6).forEach {
+         level4.add(SolidObstruction(it*itemWidth, posY = itemHeight*it, itemWidth, itemHeight))
+         level4.add(SolidObstruction((canvasWidth-itemWidth)-(itemWidth*it), itemHeight*it, itemWidth, itemHeight))
+         level4.add(SolidObstruction(it*itemWidth,canvasHeight-(itemHeight*it), itemWidth, itemHeight))
+         level4.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*it), itemWidth, itemHeight))
+      }
+      levels.add(Level(3, "Level4", level4, Direction.EAST, 25, true))
    }
 
    fun getLevel(idx: Int): Level {
@@ -50,7 +57,8 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
       }
 
       fun getFirstLevel(): Levels.Level? {
-         return levels.firstOrNull()
+         //return levels.firstOrNull()
+         return levels.last()
       }
    }
 }

@@ -42,40 +42,46 @@ class SnakeController(
       head.direction = direction
    }
 
-   fun move(action: MoveAction, obstructions: MutableList<Obstructing>): SnakeSegment? {
+   fun moveToPos(posX: Double, posY: Double) {
+      innerBody.asReversed().forEachIndexed { reversedIndex, segment ->
+         val originalIndex = innerBody.size - 1 - reversedIndex
+         if (originalIndex == 0) {
+            segment.posY = head.posY
+            segment.posX = head.posX
+         } else {
+            segment.posY = innerBody.elementAt(originalIndex - 1).posY
+            segment.posX = innerBody.elementAt(originalIndex - 1).posX
+         }
+      }
+      head.posX = posX
+      head.posY = posY
+   }
+
+   fun move(action: MoveAction): SnakeSegment? {
       var element: SnakeSegment? = null
       if (action == MoveAction.GROW) {
          //push new element with head pos
          grow(1)
          onAddSegment(innerBody.first())
-      } else {
-         if (action == MoveAction.SHRINK) {
-            element = innerBody.removeLast()
-         }
-         innerBody.asReversed().forEachIndexed { reversedIndex, segment ->
-            val originalIndex = innerBody.size - 1 - reversedIndex
-            if (originalIndex == 0) {
-               segment.posY = head.posY
-               segment.posX = head.posX
-            } else {
-               segment.posY = innerBody.elementAt(originalIndex - 1).posY
-               segment.posX = innerBody.elementAt(originalIndex - 1).posX
-            }
-         }
+      } else if (action == MoveAction.SHRINK) {
+         element = innerBody.removeLast()
       }
+      var posX: Double = 0.0
+      var posY: Double = 0.0
       when (head.direction) {
          Direction.NORTH ->
-            head.posY -= HEIGHT
+            posY -= HEIGHT
 
          Direction.SOUTH ->
-            head.posY += HEIGHT
+            posY += HEIGHT
 
          Direction.EAST ->
-            head.posX += WIDTH
+            posX += WIDTH
 
          Direction.WEST ->
-            head.posX -= WIDTH
+            posX -= WIDTH
       }
+      moveToPos(posX, posY)
       return element
    }
 

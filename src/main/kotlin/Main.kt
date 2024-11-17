@@ -1,7 +1,6 @@
 import javafx.application.Application
 import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
-import javafx.scene.control.Button
 import javafx.scene.control.Label
 import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
@@ -166,6 +165,7 @@ class SnakeGame() : Application() {
       }
    }
 
+   var currObstructing: Obstructing? = null
    fun updateGameState() {
       when (gameState) {
          GameState.GAME_OVER ->
@@ -189,10 +189,17 @@ class SnakeGame() : Application() {
 
          }
          GameState.PLAYING -> {
-            //move snake head
-            snake.move(nextAction, obstructions)?.let { obstructions.remove(it) }
-            nextAction = MoveAction.NONE
+            if(currObstructing == null) {
+               snake.move(nextAction)?.let { obstructions.remove(it) }
+            } else if(nextAction == MoveAction.EXIT_WORMHOLE && currObstructing is WormHole){
+               val obstruction = currObstructing as WormHole
+               obstruction.let {
+                  val exit = obstruction.getExit()
+                  snake.moveToPos(exit.posX, exit.posY)
+               }
 
+            }
+            nextAction = MoveAction.NONE
             //check collision
             //check if head outside canvas
             if (
@@ -230,12 +237,19 @@ class SnakeGame() : Application() {
                         obstructionToRemove.add(obstruction)
                         points--
                      }
+
+                     Obstructing.CollisionEvent.JUMP -> {
+                        if(obstruction is WormHole) {
+                           nextAction = MoveAction.EXIT_WORMHOLE
+                        }
+                     }
                   }
                }
+               //find FoodItems ready to be removed
                if (obstruction is FoodItem && obstruction.removeTime < System.currentTimeMillis())
                   obstructionToRemove.add(obstruction)
             }
-            //remove obstruction
+            //remove obstruction set for removal (e.g. fooditems)
             obstructionToRemove.forEach { item -> obstructions.remove(item) }
 
 
@@ -293,6 +307,7 @@ enum class MoveAction {
    NONE,
    GROW,
    SHRINK,
+   EXIT_WORMHOLE,
 }
 
 enum class Direction {
