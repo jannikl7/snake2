@@ -57,8 +57,6 @@ class SnakeGame() : Application() {
    var levelPauseEnd: Long? = null
 
    lateinit var obstructions: MutableList<Obstructing>
-   val snakeStartX = (canvas.width / itemWidth) * (itemWidth / 2) - (itemWidth)
-   val snakeStartY = (canvas.height / itemHeight) * (itemHeight / 2) - (itemHeight)
    lateinit var snake: SnakeController
    var nextAction: MoveAction = MoveAction.NONE
    var gameState: GameState = GameState.MENU
@@ -137,7 +135,7 @@ class SnakeGame() : Application() {
    private fun initializeLevel(level: Levels.Level) {
       this.level = level
       obstructions = level.board
-      snake.initAt(snakeStartX, snakeStartY, level.startDirection)
+      snake.initAt(level.startPosX, level.startPosY, level.startDirection)
       points = 0
       nextAction = MoveAction.NONE
    }

@@ -1,4 +1,5 @@
 import javafx.scene.canvas.Canvas
+import javafx.scene.paint.Color
 import javafx.scene.paint.CycleMethod
 import javafx.scene.paint.RadialGradient
 import javafx.scene.paint.Stop
@@ -6,10 +7,11 @@ import javafx.scene.paint.Stop
 class WormHole(
    override val posX: Double,
    override val posY: Double,
-   secondPosY: Double,
    secondPosX: Double,
+   secondPosY: Double,
    override val width: Double,
-   override val height: Double
+   override val height: Double,
+   val color: Color
 ) : Obstructing {
 
    private var occupied = false
@@ -37,7 +39,7 @@ class WormHole(
       val gContext = canvas.graphicsContext2D
       val gradient = RadialGradient(
          0.0, 0.0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
-         Stop(0.0, javafx.scene.paint.Color.GREEN), Stop(1.0, javafx.scene.paint.Color.BLACK)
+         Stop(0.0, color), Stop(1.0, javafx.scene.paint.Color.BLACK)
       )
 
       gContext.fill = gradient

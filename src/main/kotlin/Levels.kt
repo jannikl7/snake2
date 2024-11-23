@@ -1,9 +1,14 @@
+import javafx.scene.paint.Color
+
 class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasHeight: Double, scaleFactor: Int) {
    init {
       val centerCol = (canvasWidth/itemWidth)/2
       val centerRow = (canvasHeight/itemHeight)/2
 
-      levels.add(Level(0,"Level 1", mutableListOf(), Direction.EAST, 25, false))
+      val snakeStartX = (canvasWidth / itemWidth) * (itemWidth / 2) - (itemWidth)
+      val snakeStartY = (canvasHeight / itemHeight) * (itemHeight / 2) - (itemHeight)
+
+      levels.add(Level(0,"Level 1", mutableListOf(), Direction.EAST, 25, false, snakeStartX, snakeStartY))
 
       //------------- Level 2 ----------------
       val level2 = mutableListOf<Obstructing>()
@@ -14,7 +19,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level2.add(SolidObstruction((startX + i) * itemWidth, thirdHeight * itemHeight, itemWidth, itemHeight))
          level2.add(SolidObstruction((startX + i) * itemWidth, thirdHeight * itemHeight * 2, itemWidth, itemHeight))
       }
-      levels.add(Level(1, "Level2", level2, Direction.EAST, 25, false))
+      levels.add(Level(1, "Level2", level2, Direction.EAST, 25, false, snakeStartX, snakeStartY))
 
 
       //------------- Level 3 ----------------
@@ -32,7 +37,7 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level3.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*3), itemWidth, itemHeight))
          level3.add(SolidObstruction((canvasWidth-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*4), itemWidth, itemHeight))
       }
-       levels.add(Level(2, "Level3", level3, Direction.EAST, 25, false))
+       levels.add(Level(2, "Level3", level3, Direction.EAST, 25, false, snakeStartX, snakeStartY))
 
        val level4 = mutableListOf<Obstructing>()
       (3 .. 6).forEach {
@@ -41,20 +46,27 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level4.add(SolidObstruction(it*itemWidth,canvasHeight-(itemHeight*it), itemWidth, itemHeight))
          level4.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*it), itemWidth, itemHeight))
       }
-      levels.add(Level(3, "Level4", level4, Direction.EAST, 25, true))
+      levels.add(Level(3, "Level4", level4, Direction.EAST, 25, true, snakeStartX, snakeStartY))
 
       val level5 = mutableListOf<Obstructing>()
       val wormHoleGroup = mutableListOf<WormHole>()
-      val wormhole1 = WormHole(itemWidth*2, itemHeight*2, itemWidth*6, itemHeight*6, itemWidth, itemHeight )
+      val wormhole1 = WormHole(itemWidth*3, itemHeight*3, canvasWidth-(itemWidth*3), canvasHeight-(itemHeight*3), itemWidth, itemHeight, color = Color.GREEN )
+      val wormhole2 = WormHole(canvasWidth-(itemWidth*3), itemHeight*3, itemWidth*3, canvasHeight-(itemHeight*3), itemWidth, itemHeight, color = Color.RED )
       level5.add(wormhole1)
-      levels.add(Level(4, "Level5", level5, Direction.EAST, 25, true))
+      level5.add(wormhole2)
+      for(i in 0..(canvasHeight-itemHeight).toInt() step itemHeight.toInt()) {
+         level5.add(
+            SolidObstruction((canvasWidth/2)-(itemWidth/2), posY = i.toDouble(), itemWidth, itemHeight)
+         )
+      }
+      levels.add(Level(4, "Level5", level5, Direction.EAST, 25, true, snakeStartX + (itemWidth*2), snakeStartY))
    }
 
    fun getLevel(idx: Int): Level {
       return levels[idx-1].copy(board = levels[idx-1].board.toMutableList())
    }
 
-   data class Level(val idx: Int, val name: String, val board: MutableList<Obstructing>, val startDirection: Direction, val goalPoints: Int, val finalLevel: Boolean)
+   data class Level(val idx: Int, val name: String, val board: MutableList<Obstructing>, val startDirection: Direction, val goalPoints: Int, val finalLevel: Boolean, val startPosX: Double, val startPosY: Double)
 
    companion object {
       val levels: MutableList<Level> = mutableListOf()
