@@ -76,9 +76,9 @@ class SnakeGame() : Application() {
    private val scope = CoroutineScope(Dispatchers.Default + job)
    var placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
 
-   val bgImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
+   private val bgImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
 
-   fun initMenu() {
+   private fun initMenu() {
       renderMenu(canvas, layout) {initializeNewGame(canvasWidth, canvasHeight)}
    }
 
@@ -91,14 +91,14 @@ class SnakeGame() : Application() {
       stage.show()
    }
 
-   fun initializeNewGame(width: Double, height: Double) {
+   private fun initializeNewGame(width: Double, height: Double) {
       level = levels.getLevel(1)
       val firstLevel = Levels.getFirstLevel()
       if(firstLevel == null) {
          logger.severe("There are no levels available!!!")
          exitProcess(1)
       } else {
-         snake = SnakeController(snakeStartX, snakeStartY, level.startDirection) { obstruction ->
+         snake = SnakeController() { obstruction ->
             obstructions.add(obstruction)
          }
          initializeLevel(firstLevel)
@@ -134,7 +134,7 @@ class SnakeGame() : Application() {
       }
    }
 
-   fun initializeLevel(level: Levels.Level) {
+   private fun initializeLevel(level: Levels.Level) {
       this.level = level
       obstructions = level.board
       snake.initAt(snakeStartX, snakeStartY, level.startDirection)
@@ -165,7 +165,7 @@ class SnakeGame() : Application() {
       }
    }
 
-   var currObstructing: Obstructing? = null
+   private var currObstructing: Obstructing? = null
    fun updateGameState() {
       when (gameState) {
          GameState.GAME_OVER ->
@@ -191,13 +191,22 @@ class SnakeGame() : Application() {
          GameState.PLAYING -> {
             if(currObstructing == null) {
                snake.move(nextAction)?.let { obstructions.remove(it) }
-            } else if(nextAction == MoveAction.EXIT_WORMHOLE && currObstructing is WormHole){
-               val obstruction = currObstructing as WormHole
-               obstruction.let {
-                  val exit = obstruction.getExit()
-                  snake.moveToPos(exit.posX, exit.posY)
+            } else if(currObstructing is WormHole) {
+               if(nextAction == MoveAction.ENTER_WORMHOLE) {
+                  val obstruction = currObstructing as WormHole
+                  val exitPoint = obstruction.getExitPoint(snake.head.posX, snake.head.posY)
+                  if(exitPoint != null) {
+                     val (exitX, exitY) = exitPoint
+                     obstruction.let {
+                        snake.moveToPos(exitX, exitY)
+                     }
+                  } else {
+                     logger.severe("MoveAction was ${MoveAction.ENTER_WORMHOLE} but getExitPoint returned null")
+                  }
+               } else if (nextAction == MoveAction.EXIT_WORMHOLE) {
+                  snake.move(nextAction)
+                  currObstructing = null
                }
-
             }
             nextAction = MoveAction.NONE
             //check collision
@@ -214,7 +223,7 @@ class SnakeGame() : Application() {
             val combinedObstructions = snake.body + obstructions
             val obstructionToRemove = mutableListOf<Obstructing>()
             for (obstruction in combinedObstructions) {
-               if (isColliding(snake.head, obstruction)) {
+               if (obstruction.isColliding(snake.head)) {
                   val collisionEvent = obstruction.handleCollision()
                   when (collisionEvent) {
                      Obstructing.CollisionEvent.GROW -> {
@@ -223,8 +232,8 @@ class SnakeGame() : Application() {
                         points++
                         if(points == level.goalPoints) {
                            //check if player won
-                              if(level.finalLevel) gameState = GameState.GAME_WON
-                              else gameState = GameState.LEVEL_COMPLETED
+                           gameState = if(level.finalLevel) GameState.GAME_WON
+                           else GameState.LEVEL_COMPLETED
                         }
                      }
 
@@ -238,10 +247,15 @@ class SnakeGame() : Application() {
                         points--
                      }
 
-                     Obstructing.CollisionEvent.JUMP -> {
+                     Obstructing.CollisionEvent.WORMHOLE_ENTER -> {
                         if(obstruction is WormHole) {
-                           nextAction = MoveAction.EXIT_WORMHOLE
+                           currObstructing = obstruction
+                           nextAction = MoveAction.ENTER_WORMHOLE
                         }
+                     }
+
+                     Obstructing.CollisionEvent.WORMHOLE_EXIT -> {
+                        nextAction = MoveAction.EXIT_WORMHOLE
                      }
                   }
                }
@@ -263,7 +277,7 @@ class SnakeGame() : Application() {
                   val posY =
                      Random.nextInt((canvas.height / itemHeight).toInt()) * itemHeight.toInt()
                   foodItem = FoodItem(posX.toDouble(), posY.toDouble(), editable = (Random.nextInt(2) == 1), width = itemWidth, height = itemHeight)
-               } while (obstructions.any { canvasItem -> isColliding(foodItem, canvasItem) })
+               } while (obstructions.any { canvasItem -> foodItem.isColliding(canvasItem) })
                //add obstruction
                obstructions.add(foodItem)
                placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
@@ -284,18 +298,6 @@ class SnakeGame() : Application() {
       }
    }
 
-   fun isColliding(objA: Obstructing, objB: Obstructing): Boolean {
-      val halfWidthA = objA.width / 2
-      val halfHeightA = objA.height / 2
-      val halfWidthB = objB.width / 2
-      val halfHeightB = objB.height / 2
-
-      return objA.posX + halfWidthA > objB.posX - halfWidthB && // Right edge of A reaches left edge of B
-              objA.posX - halfWidthA < objB.posX + halfWidthB && // Left edge of A reaches right edge of B
-              objA.posY + halfHeightA > objB.posY - halfHeightB && // Bottom edge of A reaches top edge of B
-              objA.posY - halfHeightA < objB.posY + halfHeightB    // Top edge of A reaches bottom edge of B
-   }
-
    fun endGame() {
       //show gameover
       job.cancel()
@@ -307,6 +309,7 @@ enum class MoveAction {
    NONE,
    GROW,
    SHRINK,
+   ENTER_WORMHOLE,
    EXIT_WORMHOLE,
 }
 

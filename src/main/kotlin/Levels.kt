@@ -42,6 +42,12 @@ class Levels(itemWidth: Double, itemHeight: Double, canvasWidth: Double, canvasH
          level4.add(SolidObstruction((canvasHeight-itemWidth)-(itemWidth*it), canvasHeight-(itemHeight*it), itemWidth, itemHeight))
       }
       levels.add(Level(3, "Level4", level4, Direction.EAST, 25, true))
+
+      val level5 = mutableListOf<Obstructing>()
+      val wormHoleGroup = mutableListOf<WormHole>()
+      val wormhole1 = WormHole(itemWidth*2, itemHeight*2, itemWidth*6, itemHeight*6, itemWidth, itemHeight )
+      level5.add(wormhole1)
+      levels.add(Level(4, "Level5", level5, Direction.EAST, 25, true))
    }
 
    fun getLevel(idx: Int): Level {

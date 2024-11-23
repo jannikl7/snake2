@@ -82,17 +82,17 @@ fun renderScene(canvas: Canvas, snake: SnakeController, pointsLabel: Label, poin
 
    //renderGrid()
 
+   //add obstacles
+   level.board.forEach { item ->
+      item.render(canvas)
+   }
+
    //render head
    snake.renderHead(canvas)
 
    //add snakes body
    snake.body.forEach { segment ->
       segment.render(canvas)
-   }
-
-   //add obstacles
-   level.board.forEach { item ->
-      item.render(canvas)
    }
    when (gameState) {
       SnakeGame.GameState.GAME_OVER -> {

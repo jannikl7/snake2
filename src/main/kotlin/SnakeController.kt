@@ -6,9 +6,7 @@ import javafx.scene.paint.RadialGradient
 import javafx.scene.paint.Stop
 
 class SnakeController(
-   var posX: Double,
-   var posY: Double,
-   var direction: Direction,
+
    private val onAddSegment: (Obstructing) -> Unit
 ) {
    companion object {
@@ -17,7 +15,7 @@ class SnakeController(
       val STROKE: Color = Color.DARKGRAY
    }
 
-   val head: SnakeSegment = SnakeSegment(posX, posY, WIDTH, HEIGHT, direction)
+   val head: SnakeSegment = SnakeSegment(WIDTH, HEIGHT, WIDTH, HEIGHT, Direction.EAST)
    private var _mouthOpen = false // Backing field to hold the actual state
    val mouthOpen: Boolean
       get() {
@@ -66,22 +64,22 @@ class SnakeController(
       } else if (action == MoveAction.SHRINK) {
          element = innerBody.removeLast()
       }
-      var posX: Double = 0.0
-      var posY: Double = 0.0
+      var _posX = head.posX
+      var _posY = head.posY
       when (head.direction) {
          Direction.NORTH ->
-            posY -= HEIGHT
+            _posY -= HEIGHT
 
          Direction.SOUTH ->
-            posY += HEIGHT
+            _posY += HEIGHT
 
          Direction.EAST ->
-            posX += WIDTH
+            _posX += WIDTH
 
          Direction.WEST ->
-            posX -= WIDTH
+            _posX -= WIDTH
       }
-      moveToPos(posX, posY)
+      moveToPos(_posX, _posY)
       return element
    }
 
