@@ -1,17 +1,22 @@
+import javafx.animation.KeyFrame
+import javafx.animation.KeyValue
+import javafx.animation.Timeline
 import javafx.geometry.Bounds
+import javafx.geometry.Pos
 import javafx.geometry.VPos
+import javafx.scene.Group
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
 import javafx.scene.control.Label
 import javafx.scene.image.Image
-import javafx.scene.layout.BorderPane
-import javafx.scene.layout.Pane
+import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.Text
 import javafx.scene.text.TextAlignment
+import javafx.util.Duration
 
 
 fun renderCenteredBoxWithText(canvas: Canvas, text: String) {
@@ -52,12 +57,47 @@ fun renderGameOver(canvas: Canvas) {
    renderCenteredBoxWithText(canvas, "GAME OVER")
 }
 
-fun renderMenu(canvas: Canvas, layout: BorderPane, onMouseClicked: () -> Unit) {
-   val start = Button(".Snake")
-   start.setOnMouseClicked { _ ->
-      onMouseClicked()
+fun renderMenu(canvas: Canvas, layout: BorderPane, customFont: Font, bgImg: Image, initializeNewGame: () -> Unit) {
+
+
+   val startGameButton = Button("START")
+   startGameButton.font = customFont
+   startGameButton.styleClass.add("menu-button")
+   startGameButton.setOnMouseClicked { initializeNewGame() }
+
+   val controlsButton = Button("CONTROLS")
+   controlsButton.font = customFont
+   controlsButton.styleClass.add("menu-button")
+
+   val highScoreButton = Button("HIGH SCORE")
+   highScoreButton.font = customFont
+   highScoreButton.styleClass.add("menu-button")
+
+   val settingsButton = Button("SETTINGS")
+   settingsButton.font = customFont
+   settingsButton.styleClass.add("menu-button")
+
+   val menu = VBox().apply {
+      styleClass.add("menu")
+      alignment = Pos.CENTER
+      children.addAll(startGameButton, controlsButton, highScoreButton, settingsButton)
+
    }
-   layout.center = start
+
+   val group =  Group(menu)
+
+   val bg = Background(
+      BackgroundImage(
+         bgImg,
+         BackgroundRepeat.NO_REPEAT,
+         BackgroundRepeat.NO_REPEAT,
+         BackgroundPosition.CENTER,
+         BackgroundSize.DEFAULT
+      )
+   )
+
+   layout.background = bg
+   layout.center = group
 
 }
 

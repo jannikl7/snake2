@@ -6,6 +6,7 @@ import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.BorderPane
 import javafx.scene.paint.Color
+import javafx.scene.text.Font
 import javafx.stage.Stage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.JavaFx
@@ -74,16 +75,23 @@ class SnakeGame() : Application() {
    private val scope = CoroutineScope(Dispatchers.Default + job)
    var placeNextItemTime = System.currentTimeMillis() + Random.nextLong(10_000L)
 
-   private val bgImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
-
+   private val menuBGImg = Image(this::class.java.getResource("/img/backgrounds/snake-background.jpg")?.toExternalForm())
+   private val playBGImg = Image(this::class.java.getResource("/img/backgrounds/river.jpg")?.toExternalForm())
+   val resource = this::class.java.getResource("/fonts/Lacquer/Lacquer-Regular.ttf")?.toExternalForm()
+   val customFont = Font.loadFont(
+      resource,
+      20.0
+   )
    private fun initMenu() {
-      renderMenu(canvas, layout) {initializeNewGame(canvasWidth, canvasHeight)}
+      renderMenu(canvas, layout, customFont, menuBGImg) {initializeNewGame(canvasWidth, canvasHeight)}
    }
 
    override fun start(stage: Stage) {
       initMenu()
 
       val scene = Scene(layout, 400.0, 450.0)
+
+      scene.stylesheets.add(this::class.java.getResource("/styles/menu.css")?.toExternalForm())
       stage.scene = scene
       stage.title = ".Snake Game"
       stage.show()
@@ -152,7 +160,7 @@ class SnakeGame() : Application() {
                snake,
                pointsLabel,
                points,
-               bgImg,
+               playBGImg,
                level,
                gameState
             )

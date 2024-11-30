@@ -34,6 +34,7 @@ javafx {
    modules("javafx.controls", "javafx.fxml")
 }
 
+
 tasks.test {
    useJUnitPlatform()
 }

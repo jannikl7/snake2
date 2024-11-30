@@ -1,0 +1,25 @@
+@font-face {
+    font-family: "Lacquer";
+    src: url("fonts/Lacquer/Lacquer-Regular.ttf") format("truetype");
+    /* You can also include other formats like .woff or .woff2 for broader support */
+}
+
+.menu-button {
+    -fx-background-color: transparent;
+    -fx-max-width: infinity;
+    -fx-text-fill: orange;
+    -fx-border-width: 0;
+    -fx-cursor: hand;
+    -fx-font-size: 22px;
+    -fx-font-family: "Lacquer";
+}
+
+.menu-button:hover {
+    -fx-background-color: rgba(255, 0, 0, 0.5);
+}
+
+VBox.menu {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-padding: 10;
+    -fx-spacing: 5;
+}
